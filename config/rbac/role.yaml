@@ -1,0 +1,48 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kite-manager-role
+rules:
+  # OptimizationTarget CRD
+  - apiGroups: ["optimization.kite.dev"]
+    resources: ["optimizationtargets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["optimization.kite.dev"]
+    resources: ["optimizationtargets/status"]
+    verbs: ["get", "update", "patch"]
+  - apiGroups: ["optimization.kite.dev"]
+    resources: ["optimizationtargets/finalizers"]
+    verbs: ["update"]
+  # MetricsHistory CRD
+  - apiGroups: ["optimization.kite.dev"]
+    resources: ["metricshistories"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  # Workload resources (read-only)
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets", "daemonsets"]
+    verbs: ["get", "list", "watch"]
+  # HPA
+  - apiGroups: ["autoscaling"]
+    resources: ["horizontalpodautoscalers"]
+    verbs: ["get", "list", "watch"]
+  # Pods and Namespaces (read-only)
+  - apiGroups: [""]
+    resources: ["pods", "namespaces"]
+    verbs: ["get", "list", "watch"]
+  # Secrets (for GitOps tokens)
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get"]
+  # Events (for Kubernetes event recording)
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+  # metrics-server
+  - apiGroups: ["metrics.k8s.io"]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+  # Leader election
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]

@@ -1,0 +1,356 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.16.4
+  name: optimizationtargets.optimization.kite.dev
+spec:
+  group: optimization.kite.dev
+  names:
+    kind: OptimizationTarget
+    listKind: OptimizationTargetList
+    plural: optimizationtargets
+    singular: optimizationtarget
+    shortNames:
+      - ot
+  scope: Cluster
+  versions:
+    - additionalPrinterColumns:
+        - jsonPath: .spec.schedule
+          name: Schedule
+          type: string
+        - jsonPath: .status.lastAnalysisTime
+          name: Last Analysis
+          type: date
+        - jsonPath: .status.totalWorkloads
+          name: Workloads
+          type: integer
+        - jsonPath: .status.workloadsWithPR
+          name: PRs Opened
+          type: integer
+        - jsonPath: .metadata.creationTimestamp
+          name: Age
+          type: date
+      name: v1alpha1
+      schema:
+        openAPIV3Schema:
+          description: >
+            OptimizationTarget declares which workloads Kite should rightsize,
+            the algorithm parameters, and – optionally – how to open pull requests
+            in a GitOps repository.
+          properties:
+            apiVersion:
+              type: string
+            kind:
+              type: string
+            metadata:
+              type: object
+            spec:
+              description: OptimizationTargetSpec defines the desired configuration.
+              properties:
+                target:
+                  description: Target defines which workloads are in scope.
+                  properties:
+                    namespaces:
+                      description: Namespaces to inspect. When empty all non-system namespaces are included.
+                      items:
+                        type: string
+                      type: array
+                    excludeNamespaces:
+                      description: Namespaces to exclude.
+                      items:
+                        type: string
+                      type: array
+                    labelSelector:
+                      description: Label selector to filter workloads.
+                      properties:
+                        matchExpressions:
+                          items:
+                            properties:
+                              key:
+                                type: string
+                              operator:
+                                type: string
+                              values:
+                                items:
+                                  type: string
+                                type: array
+                            required:
+                              - key
+                              - operator
+                            type: object
+                          type: array
+                        matchLabels:
+                          additionalProperties:
+                            type: string
+                          type: object
+                      type: object
+                    kinds:
+                      description: Workload kinds to target. Defaults to Deployment, StatefulSet, DaemonSet.
+                      items:
+                        type: string
+                      type: array
+                  type: object
+                schedule:
+                  description: Cron expression for how often to run analysis (e.g. "0 2 * * *").
+                  type: string
+                scrapeInterval:
+                  description: How often to collect metrics from the metrics-server. Defaults to 5m.
+                  type: string
+                rules:
+                  description: RightsizingRules controls the recommendation algorithm.
+                  properties:
+                    cpuPercentile:
+                      description: Percentile of CPU samples for the recommendation baseline (default 95).
+                      format: int32
+                      maximum: 100
+                      minimum: 1
+                      type: integer
+                    memoryPercentile:
+                      description: Percentile of memory samples for the recommendation baseline (default 100).
+                      format: int32
+                      maximum: 100
+                      minimum: 1
+                      type: integer
+                    cpuSafetyMarginPercent:
+                      description: Extra CPU safety margin added on top of the percentile baseline (default 15).
+                      format: int32
+                      maximum: 200
+                      minimum: 0
+                      type: integer
+                    memorySafetyMarginPercent:
+                      description: Extra memory safety margin added on top of the percentile baseline (default 15).
+                      format: int32
+                      maximum: 200
+                      minimum: 0
+                      type: integer
+                    minCPURequest:
+                      description: Floor for any CPU request recommendation (default "10m").
+                      type: string
+                    minMemoryRequest:
+                      description: Floor for any memory request recommendation (default "32Mi").
+                      type: string
+                    cpuLimitRatio:
+                      description: >
+                        If set, CPU limit = CPU request * ratio.
+                        When absent the CPU limit is removed.
+                      type: string
+                    memoryLimitRatio:
+                      description: >
+                        Memory limit = memory request * ratio (default "1.0" → limit equals request).
+                      type: string
+                    historyWindow:
+                      description: Lookback duration for the algorithm (default "24h").
+                      type: string
+                    hpaBehavior:
+                      description: >
+                        How to handle HPA-managed workloads.
+                        Skip omits them; Include adds a note to the recommendation.
+                      enum:
+                        - Skip
+                        - Include
+                      type: string
+                  type: object
+                gitOps:
+                  description: GitOps configuration for automated PR creation.
+                  properties:
+                    provider:
+                      description: Git hosting provider.
+                      enum:
+                        - github
+                        - gitlab
+                      type: string
+                    repoURL:
+                      description: HTTPS URL of the GitOps repository.
+                      type: string
+                    baseBranch:
+                      description: Branch that pull requests will target (default "main").
+                      type: string
+                    secretRef:
+                      description: >
+                        Reference to a Secret containing a "token" key with the
+                        personal access token.
+                      properties:
+                        name:
+                          type: string
+                      required:
+                        - name
+                      type: object
+                    pathTemplate:
+                      description: >
+                        Go template resolving to the manifest file path inside the repo.
+                        Variables: .Namespace .Name .Kind
+                      type: string
+                    prTitleTemplate:
+                      description: Go template for the pull-request title.
+                      type: string
+                    prBodyTemplate:
+                      description: Go template for the pull-request body (Markdown).
+                      type: string
+                    prLabels:
+                      description: Labels to attach to every PR.
+                      items:
+                        type: string
+                      type: array
+                    autoMerge:
+                      description: Automatically merge PRs after creation.
+                      type: boolean
+                    commitMessageTemplate:
+                      description: Go template for the commit message.
+                      type: string
+                    reviewers:
+                      description: GitHub/GitLab usernames to request review from.
+                      items:
+                        type: string
+                      type: array
+                  required:
+                    - provider
+                    - repoURL
+                    - secretRef
+                    - pathTemplate
+                  type: object
+                dryRun:
+                  description: When true, compute recommendations but skip PR creation.
+                  type: boolean
+              required:
+                - target
+                - schedule
+              type: object
+            status:
+              description: OptimizationTargetStatus reflects the observed state.
+              properties:
+                conditions:
+                  description: Standard Kubernetes conditions.
+                  items:
+                    description: Condition contains details for one aspect of the current state.
+                    properties:
+                      lastTransitionTime:
+                        format: date-time
+                        type: string
+                      message:
+                        type: string
+                      observedGeneration:
+                        format: int64
+                        type: integer
+                      reason:
+                        type: string
+                      status:
+                        type: string
+                      type:
+                        type: string
+                    required:
+                      - lastTransitionTime
+                      - message
+                      - reason
+                      - status
+                      - type
+                    type: object
+                  type: array
+                observedGeneration:
+                  format: int64
+                  type: integer
+                lastAnalysisTime:
+                  format: date-time
+                  type: string
+                nextAnalysisTime:
+                  format: date-time
+                  type: string
+                lastScrapeTime:
+                  format: date-time
+                  type: string
+                totalWorkloads:
+                  format: int32
+                  type: integer
+                workloadsWithPR:
+                  format: int32
+                  type: integer
+                recommendations:
+                  description: Rightsizing recommendations from the last analysis run.
+                  items:
+                    properties:
+                      namespace:
+                        type: string
+                      name:
+                        type: string
+                      kind:
+                        type: string
+                      currentReplicas:
+                        format: int32
+                        type: integer
+                      hpaManaged:
+                        type: boolean
+                      hpaMinReplicas:
+                        format: int32
+                        type: integer
+                      hpaMaxReplicas:
+                        format: int32
+                        type: integer
+                      dataPoints:
+                        format: int32
+                        type: integer
+                      containers:
+                        items:
+                          properties:
+                            name:
+                              type: string
+                            currentCPURequest:
+                              type: string
+                            currentCPULimit:
+                              type: string
+                            currentMemoryRequest:
+                              type: string
+                            currentMemoryLimit:
+                              type: string
+                            recommendedCPURequest:
+                              type: string
+                            recommendedCPULimit:
+                              type: string
+                            recommendedMemoryRequest:
+                              type: string
+                            recommendedMemoryLimit:
+                              type: string
+                            cpuRequestDiffPercent:
+                              format: double
+                              type: number
+                            memoryRequestDiffPercent:
+                              format: double
+                              type: number
+                            confidence:
+                              type: string
+                          required:
+                            - name
+                            - currentCPURequest
+                            - currentMemoryRequest
+                            - recommendedCPURequest
+                            - recommendedMemoryRequest
+                            - cpuRequestDiffPercent
+                            - memoryRequestDiffPercent
+                            - confidence
+                          type: object
+                        type: array
+                      prUrl:
+                        type: string
+                      prStatus:
+                        type: string
+                      generatedAt:
+                        format: date-time
+                        type: string
+                      skipped:
+                        type: boolean
+                      skipReason:
+                        type: string
+                    required:
+                      - namespace
+                      - name
+                      - kind
+                      - dataPoints
+                      - generatedAt
+                    type: object
+                  type: array
+              type: object
+          type: object
+      served: true
+      storage: true
+      subresources:
+        status: {}

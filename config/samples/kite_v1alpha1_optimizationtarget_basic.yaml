@@ -1,0 +1,43 @@
+---
+# Basic example: analyse all workloads in the "production" namespace every day
+# at 02:00 UTC.  No GitOps integration – recommendations are reported in the
+# status only (report-only / dry-run mode).
+apiVersion: optimization.kite.dev/v1alpha1
+kind: OptimizationTarget
+metadata:
+  name: production-rightsizing
+spec:
+  # Analyse all Deployments and StatefulSets in the "production" namespace.
+  target:
+    namespaces:
+      - production
+    kinds:
+      - Deployment
+      - StatefulSet
+
+  # Collect metrics every 5 minutes (default; shown here for clarity).
+  scrapeInterval: 5m
+
+  # Run analysis every day at 02:00 UTC.
+  schedule: "0 2 * * *"
+
+  rules:
+    # Use the 95th percentile of observed per-replica CPU samples.
+    cpuPercentile: 95
+    # Use the maximum observed per-replica memory (safest default).
+    memoryPercentile: 100
+    # Add 15% safety margin on top of both baselines.
+    cpuSafetyMarginPercent: 15
+    memorySafetyMarginPercent: 15
+    # Never recommend less than 10m CPU or 32Mi memory.
+    minCPURequest: "10m"
+    minMemoryRequest: "32Mi"
+    # Memory limit = memory request (ratio 1.0 → limit == request).
+    memoryLimitRatio: "1.0"
+    # Look back 24 hours for historical data.
+    historyWindow: 24h
+    # Include HPA-managed workloads in the analysis.
+    hpaBehavior: Include
+
+  # DryRun: compute recommendations but do NOT open pull requests.
+  dryRun: true

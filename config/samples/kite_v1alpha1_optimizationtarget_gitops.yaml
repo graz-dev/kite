@@ -1,0 +1,73 @@
+---
+# Full example: analyse all workloads and open pull requests in a GitHub
+# GitOps repository to apply the recommendations automatically.
+#
+# Prerequisites:
+#   1. Create a Kubernetes Secret in the kite-system namespace:
+#      kubectl create secret generic gitops-token \
+#        --from-literal=token=ghp_YOUR_GITHUB_PAT \
+#        -n kite-system
+#   2. The GitHub token must have "repo" write permissions.
+apiVersion: optimization.kite.dev/v1alpha1
+kind: OptimizationTarget
+metadata:
+  name: full-rightsizing
+spec:
+  target:
+    # Target all non-system namespaces (empty = all).
+    excludeNamespaces:
+      - kube-system
+      - kite-system
+      - cert-manager
+    kinds:
+      - Deployment
+      - StatefulSet
+      - DaemonSet
+
+  scrapeInterval: 5m
+  schedule: "0 3 * * 1"  # Every Monday at 03:00 UTC
+
+  rules:
+    cpuPercentile: 95
+    memoryPercentile: 100
+    cpuSafetyMarginPercent: 20
+    memorySafetyMarginPercent: 15
+    minCPURequest: "10m"
+    minMemoryRequest: "64Mi"
+    # CPU limit = 2× the recommended CPU request (gives headroom for bursts).
+    cpuLimitRatio: "2.0"
+    memoryLimitRatio: "1.3"
+    historyWindow: 168h  # 7 days
+    hpaBehavior: Include
+
+  gitOps:
+    provider: github
+    repoURL: "https://github.com/my-org/my-infra"
+    baseBranch: main
+
+    # Reference to the Secret holding the GitHub token.
+    secretRef:
+      name: gitops-token
+
+    # The manifest file path inside the repo.
+    # Available template variables: .Namespace .Name .Kind
+    pathTemplate: "clusters/production/{{.Namespace}}/{{.Name}}/deployment.yaml"
+
+    # Pull-request title template.
+    prTitleTemplate: "chore(kite): rightsize {{.Kind}} {{.Namespace}}/{{.Name}}"
+
+    # Labels applied to every PR.
+    prLabels:
+      - kite
+      - resource-optimization
+      - automated
+
+    # Request reviews from these GitHub users.
+    reviewers:
+      - platform-team
+
+    # Do NOT auto-merge; let humans review first.
+    autoMerge: false
+
+  # Set dryRun: true to preview recommendations without creating PRs.
+  dryRun: false

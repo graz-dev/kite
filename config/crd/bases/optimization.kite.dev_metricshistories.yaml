@@ -1,0 +1,125 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.16.4
+  name: metricshistories.optimization.kite.dev
+spec:
+  group: optimization.kite.dev
+  names:
+    kind: MetricsHistory
+    listKind: MetricsHistoryList
+    plural: metricshistories
+    singular: metricshistory
+    shortNames:
+      - mh
+  scope: Namespaced
+  versions:
+    - additionalPrinterColumns:
+        - jsonPath: .spec.workloadRef.name
+          name: Workload
+          type: string
+        - jsonPath: .spec.workloadRef.namespace
+          name: Namespace
+          type: string
+        - jsonPath: .spec.workloadRef.kind
+          name: Kind
+          type: string
+        - jsonPath: .spec.maxDataPoints
+          name: Max Points
+          type: integer
+        - jsonPath: .metadata.creationTimestamp
+          name: Age
+          type: date
+      name: v1alpha1
+      schema:
+        openAPIV3Schema:
+          description: >
+            MetricsHistory stores a rolling window of metrics-server observations
+            for a single workload.  The Kite operator creates and maintains one
+            MetricsHistory object per workload in the operator's namespace.
+          properties:
+            apiVersion:
+              type: string
+            kind:
+              type: string
+            metadata:
+              type: object
+            spec:
+              description: MetricsHistorySpec holds the accumulated observations.
+              properties:
+                workloadRef:
+                  description: WorkloadRef identifies the workload these metrics belong to.
+                  properties:
+                    namespace:
+                      description: Namespace of the workload.
+                      type: string
+                    name:
+                      description: Name of the workload.
+                      type: string
+                    kind:
+                      description: Kind of the workload (Deployment, StatefulSet, DaemonSet).
+                      type: string
+                  required:
+                    - namespace
+                    - name
+                    - kind
+                  type: object
+                maxDataPoints:
+                  description: >
+                    Maximum number of data points to retain before older ones are pruned.
+                    Defaults to 2016 (7 days at 5-minute intervals).
+                  format: int32
+                  type: integer
+                dataPoints:
+                  description: Time-ordered list of observations.
+                  items:
+                    description: MetricsDataPoint is one observation of a workload's resource usage.
+                    properties:
+                      timestamp:
+                        description: When the observation was recorded.
+                        format: date-time
+                        type: string
+                      replicaCount:
+                        description: Number of running pods at observation time.
+                        format: int32
+                        type: integer
+                      containers:
+                        description: Per-container usage figures (maximum across all replicas).
+                        items:
+                          description: ContainerMetrics holds the resource usage of a single container.
+                          properties:
+                            name:
+                              description: Container name.
+                              type: string
+                            cpuMilliCores:
+                              description: CPU usage in milli-cores.
+                              format: int64
+                              type: integer
+                            memoryBytes:
+                              description: Working-set memory usage in bytes.
+                              format: int64
+                              type: integer
+                          required:
+                            - name
+                            - cpuMilliCores
+                            - memoryBytes
+                          type: object
+                        type: array
+                    required:
+                      - timestamp
+                      - replicaCount
+                      - containers
+                    type: object
+                  type: array
+              required:
+                - workloadRef
+              type: object
+            status:
+              description: MetricsHistoryStatus is reserved for future use.
+              type: object
+          type: object
+      served: true
+      storage: true
+      subresources: {}
