@@ -104,7 +104,7 @@ func (p *GitLabProvider) CreatePR(ctx context.Context, req PRRequest) (*PRResult
 	if p.BaseURL != "" {
 		glOptions = append(glOptions, gitlab.WithBaseURL(p.BaseURL))
 	}
-	glClient, err := gitlab.NewClient(req.Token, glOptions...)
+	glClient, err := gitlab.NewClient(req.Token, glOptions...) //nolint:staticcheck // TODO: migrate to gitlab.com/gitlab-org/api/client-go
 	if err != nil {
 		return nil, fmt.Errorf("creating GitLab client: %w", err)
 	}

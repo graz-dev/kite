@@ -481,7 +481,7 @@ func pruneDataPoints(points []optimizationv1alpha1.MetricsDataPoint, cutoff time
 	// Remove data points older than the cutoff.
 	out := points[:0]
 	for _, p := range points {
-		if p.Timestamp.Time.After(cutoff) {
+		if p.Timestamp.After(cutoff) {
 			out = append(out, p)
 		}
 	}

@@ -132,7 +132,7 @@ func Compute(input WorkloadInput, rules optimizationv1alpha1.RightsizingRules) R
 
 	if input.History != nil {
 		for _, dp := range input.History.Spec.DataPoints {
-			if !dp.Timestamp.Time.After(cutoff) {
+			if !dp.Timestamp.After(cutoff) {
 				continue
 			}
 			for _, cm := range dp.Containers {

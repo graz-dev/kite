@@ -19,10 +19,8 @@
 package controller
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"text/template"
 	"time"
 
 	"github.com/robfig/cron/v3"
@@ -595,24 +593,6 @@ func newGitOpsProvider(provider string) gitops.Provider {
 	default:
 		return &gitops.GitHubProvider{}
 	}
-}
-
-// --- template helpers --------------------------------------------------------
-
-func renderPathTemplate(tmplStr, namespace, name, kind string) (string, error) {
-	t, err := template.New("path").Parse(tmplStr)
-	if err != nil {
-		return "", err
-	}
-	var buf bytes.Buffer
-	if err := t.Execute(&buf, map[string]string{
-		"Namespace": namespace,
-		"Name":      name,
-		"Kind":      kind,
-	}); err != nil {
-		return "", err
-	}
-	return buf.String(), nil
 }
 
 // --- misc helpers ------------------------------------------------------------

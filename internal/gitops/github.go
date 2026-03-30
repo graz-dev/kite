@@ -3,7 +3,6 @@ package gitops
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 	"time"
 
@@ -209,12 +208,3 @@ func splitPath(s string) []string {
 	return parts
 }
 
-// tempDir creates a temporary directory and returns its path along with a
-// cleanup function.
-func tempDir(prefix string) (string, func(), error) {
-	dir, err := os.MkdirTemp("", prefix)
-	if err != nil {
-		return "", nil, err
-	}
-	return dir, func() { os.RemoveAll(dir) }, nil
-}
