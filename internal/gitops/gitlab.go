@@ -155,7 +155,7 @@ func (p *GitLabProvider) ReadFileFromRepo(ctx context.Context, repoURL, token, b
 	if p.BaseURL != "" {
 		glOptions = append(glOptions, gitlab.WithBaseURL(p.BaseURL))
 	}
-	glClient, err := gitlab.NewClient(token, glOptions...)
+	glClient, err := gitlab.NewClient(token, glOptions...) //nolint:staticcheck // TODO: migrate to gitlab.com/gitlab-org/api/client-go
 	if err != nil {
 		return nil, fmt.Errorf("creating GitLab client: %w", err)
 	}
