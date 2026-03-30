@@ -14,7 +14,7 @@ GOLANGCI_LINT  ?= $(LOCALBIN)/golangci-lint
 
 # Controller-gen version pinned for reproducible builds
 CONTROLLER_TOOLS_VERSION ?= v0.16.4
-GOLANGCI_LINT_VERSION    ?= v1.64.0
+GOLANGCI_LINT_VERSION    ?= v2.11.4
 
 # ─── Default target ──────────────────────────────────────────────────────────
 
@@ -131,8 +131,7 @@ $(ENVTEST): $(LOCALBIN)
 golangci-lint: $(GOLANGCI_LINT) ## Download golangci-lint locally if necessary
 $(GOLANGCI_LINT): $(LOCALBIN)
 	test -s $(GOLANGCI_LINT) || \
-		curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | \
-		sh -s -- -b $(LOCALBIN) $(GOLANGCI_LINT_VERSION)
+		GOBIN=$(LOCALBIN) go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
 
 # ─── Docs ────────────────────────────────────────────────────────────────────
 
