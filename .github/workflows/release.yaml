@@ -1,0 +1,95 @@
+name: Release
+
+# Triggered when a GitHub Release is published (the canonical source of truth
+# for versioning).  The release tag (e.g. "v0.2.1") is used to tag the image.
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write    # upload release assets
+  packages: write    # push to GHCR
+
+jobs:
+  release:
+    name: Build & publish to GHCR
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── Go binary ──────────────────────────────────────────────────────────
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build release binaries
+        env:
+          VERSION: ${{ github.event.release.tag_name }}
+        run: |
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+            go build -ldflags="-s -w -X main.version=${VERSION}" \
+            -o dist/kite-operator-linux-amd64 ./cmd/main.go
+
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 \
+            go build -ldflags="-s -w -X main.version=${VERSION}" \
+            -o dist/kite-operator-linux-arm64 ./cmd/main.go
+
+      - name: Upload binaries to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/kite-operator-linux-amd64
+            dist/kite-operator-linux-arm64
+            config/crd/bases/optimization.kite.dev_optimizationtargets.yaml
+            config/crd/bases/optimization.kite.dev_metricshistories.yaml
+
+      # ── Docker image ───────────────────────────────────────────────────────
+      - name: Set up QEMU (for multi-arch builds)
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Generates tags:
+      #   ghcr.io/graz-dev/kite:v0.2.1
+      #   ghcr.io/graz-dev/kite:0.2.1
+      #   ghcr.io/graz-dev/kite:0.2
+      #   ghcr.io/graz-dev/kite:latest
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/graz-dev/kite
+          tags: |
+            type=semver,pattern={{raw}}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest
+          labels: |
+            org.opencontainers.image.title=Kite
+            org.opencontainers.image.description=Kubernetes Resource Rightsizing Operator — metrics-server based, GitOps-native
+            org.opencontainers.image.url=https://graz-dev.github.io/kite/
+            org.opencontainers.image.source=https://github.com/graz-dev/kite
+            org.opencontainers.image.licenses=Apache-2.0
+
+      - name: Build and push multi-arch image to GHCR
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ github.event.release.tag_name }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
